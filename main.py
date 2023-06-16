@@ -25,10 +25,10 @@ def get_login_details():
         else:
             logged_in = True
             cur.execute(
-                "SELECT user_id, first_name FROM users WHERE email = '" + session['email'] + "'")
+                "SELECT userId, firstName FROM users WHERE email = '" + session['email'] + "'")
             user_id, first_name = cur.fetchone()
             cur.execute(
-                "SELECT count(productId) FROM kart WHERE user_id = " + str(user_id))
+                "SELECT count(productId) FROM kart WHERE userId = " + str(user_id))
             no_of_items = cur.fetchone()[0]
     conn.close()
     return (logged_in, first_name, no_of_items)
@@ -43,7 +43,8 @@ def root():
         # cur.execute(
         #    'SELECT productId, name, price, description, image, stock FROM products ORDER BY productId DESC LIMIT 1 ')
         # Show all items
-        cur.execute('SELECT productId, name, price, description, image, stock FROM products')
+        cur.execute(
+            'SELECT productId, name, price, description, image, stock FROM products')
         item_data = cur.fetchall()
         # Show an error instead of the categories
         # category_data = [(-1, "Error")]
@@ -200,6 +201,17 @@ def login_form():
         return render_template('login.html', error='')
 
 
+def is_valid(email, password):
+    con = sqlite3.connect('database.db')
+    cur = con.cursor()
+    cur.execute('SELECT email, password FROM users')
+    data = cur.fetchall()
+    for row in data:
+        if row[0] == email and row[1] == hashlib.md5(password.encode()).hexdigest():
+            return True
+    return False
+
+
 @app.route("/login", methods=['POST', 'GET'])
 def login():
     if request.method == 'POST':
@@ -276,7 +288,7 @@ def remove_from_cart():
     product_id = int(request.args.get('productId'))
     with sqlite3.connect('database.db') as conn:
         cur = conn.cursor()
-        cur.execute("SELECT user_id FROM users WHERE email = '" + email + "'")
+        cur.execute("SELECT userId FROM users WHERE email = '" + email + "'")
         user_id = cur.fetchone()[0]
         try:
             cur.execute("DELETE FROM kart WHERE user_id = " +
@@ -294,17 +306,6 @@ def remove_from_cart():
 def logout():
     session.pop('email', None)
     return redirect(url_for('root'))
-
-
-def is_valid(email, password):
-    con = sqlite3.connect('database.db')
-    cur = con.cursor()
-    cur.execute('SELECT email, password FROM users')
-    data = cur.fetchall()
-    for row in data:
-        if row[0] == email and row[1] == hashlib.md5(password.encode()).hexdigest():
-            return True
-    return False
 
 
 @app.route("/checkout", methods=['GET', 'POST'])
